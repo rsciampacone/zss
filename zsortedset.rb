@@ -27,6 +27,12 @@ class ZSkipList
 
 	attr_reader :size
 
+	# Find the node which matches _key_
+	# returns:
+	# c_node   Last node found that is lower in comparison value to the _key_
+	# n_node   Next equal or higher comparison node in the list
+	# stack    All prior nodes in the skip stack that are the next lowest compared to the key
+	# 
 	def find_node(key)
 		stack = []
 		c_node = @head	
@@ -73,6 +79,22 @@ class ZSkipList
 		end
 	end
 
+	def remove(key)
+		n_node, c_node, stack = find_node(key)
+		
+		if not n_node.nil? and key == n_node.key then
+			# n_node is to be removed.  reconnect the skip stack to the succeeding values
+			# (if this node was involved at the skip level)
+			#
+			0.upto(@max_level) do | level |
+				if n_node == stack[level][level] then
+					stack[level][level] = n_node[level]
+				end
+			end
+			@size -= 1
+		end
+	end
+ 
 	def dbg_dump_list
 		puts "---> START LIST DUMP"
 		puts "Size: #{@size}"
@@ -96,17 +118,17 @@ class ZSkipList
 		until node.nil? do
 			check_parent_should_be_nil = false
 
-			0.upto(@max_level) do | index |
-				if next_node_stack[index].nil? then
+			0.upto(@max_level) do | level |
+				if next_node_stack[level].nil? then
 					$stdout.write " "
 					check_parent_should_be_nil = true					
 				else
 					if check_parent_should_be_nil then
 						$stdout.write "E"
 					else
-						if node == next_node_stack[index] then
+						if node == next_node_stack[level] then
 							$stdout.write "+"
-							next_node_stack[index] = node[index]
+							next_node_stack[level] = node[level]
 						else
 							$stdout.write (node == @head ? "+" : "|")
 						end
@@ -123,9 +145,7 @@ end
 
 z = ZSkipList.new
 z.add("ryan", 100)
-z.dbg_dump_list
 z.add("andrew", 200)
-z.dbg_dump_list
 z.add("sciampacone", 300)
 z.dbg_dump_list
 z.add("vanessa", 100)
@@ -137,4 +157,36 @@ z.add("ann", 500)
 z.add("rachel", 150)
 z.add("tony", 325)
 z.add("anthony", 450)
+z.dbg_dump_list
+z.remove("maya")
+z.dbg_dump_list
+z.remove("andrew")
+z.dbg_dump_list
+z.remove("vanessa")
+z.dbg_dump_list
+z.add("ryan", 100)
+z.add("andrew", 200)
+z.add("sciampacone", 300)
+z.add("vanessa", 100)
+z.add("maya", 200)
+z.add("debra", 500)
+z.add("jean", 50)
+z.add("rae", 900)
+z.add("ann", 500)
+z.add("rachel", 150)
+z.add("tony", 325)
+z.add("anthony", 450)
+z.dbg_dump_list
+z.remove("ryan")
+z.remove("andrew")
+z.remove("sciampacone")
+z.remove("vanessa")
+z.remove("maya")
+z.remove("debra")
+z.remove("jean")
+z.remove("rae")
+z.remove("ann")
+z.remove("rachel")
+z.remove("tony")
+z.remove("anthony")
 z.dbg_dump_list
