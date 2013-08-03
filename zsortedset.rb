@@ -1,13 +1,15 @@
 class ZSkipList
 	class Node
-		def initialize(key, value)
+		def initialize(key, value, max_level)
 			@skip_stack = []
+			@width = [0] * (max_level + 1)
 			@key = key
 			@value = value
 		end
 		
 		attr_reader :key
 		attr_accessor :value
+		attr_reader :width
 		
 		def [](index)
 			@skip_stack[index]
@@ -19,9 +21,9 @@ class ZSkipList
 	end
 
 	def initialize
-		@head = Node.new(nil, nil)
-		@size = 0
 		@max_level = 10
+		@size = 0
+		@head = Node.new(nil, nil, @max_level)
 		@r_gen = Random.new
 	end
 
@@ -32,11 +34,13 @@ class ZSkipList
 	# c_node   Last node found that is lower in comparison value to the _key_
 	# n_node   Next equal or higher comparison node in the list
 	# stack    All prior nodes in the skip stack that are the next lowest compared to the key
+	# width_stack  The cumulative width traveled at that stack level before dropping to a lower level
 	# 
 	def find_node(key)
-		stack = []
 		c_node = @head	
 		n_node = nil	
+		stack = []
+		width_stack = [0] * (@max_level + 1)
 		@max_level.downto(0) do | level |
 			n_node = c_node[level]
 			
@@ -44,37 +48,54 @@ class ZSkipList
 				if key <= n_node.key then
 					break
 				end
-				p_node = c_node
+				$stdout.write " #{level}{#{c_node.key},#{n_node.key},#{c_node.width[level]}}" # dbg
+
+				width_stack[level] += c_node.width[level]
 				c_node = n_node
-				n_node = p_node[level]
+				n_node = c_node[level]
 			end
 			stack[level] = c_node
 		end
-		
-		return n_node, c_node, stack
+		puts # dbg		
+		return n_node, c_node, stack, width_stack
 	end
 	private :find_node
 	
 	def add(key, value)
-		n_node, c_node, stack = find_node(key)
+		n_node, c_node, stack, width_stack = find_node(key)
+		puts "Adding #{key} width_stack #{width_stack}" # dbg
 		
 		# n_node should now contain either the identical key or the one to be
 		# inserted ahead of
 		if not n_node.nil? and key == n_node.key then
 			n_node.value = value
 		else
-			node = Node.new(key, value)
+			node = Node.new(key, value, @max_level)
 			bits = @r_gen.rand(2 ** @max_level)
+
 			# We ignore the first bit here in the interest of building
 			# a linear list at the bottom level
+			cumulative_width = 0
 			level = 0
 			begin
+				# Node level connections
 				node[level] = stack[level][level]
 				stack[level][level] = node
+				
+				# Node width adjustments
+				node.width[level] = node[level].nil? ? 0 : stack[level].width[level] - cumulative_width
+				stack[level].width[level] = cumulative_width + 1
+				cumulative_width += width_stack[level]
+
+				# Look to the next / bit level and decide if the node stack grows deeper
 				bits >>= 1
 				level += 1
 			end until 0 == (bits & 1)
-			
+			# To account for the new node insert, all remaining levels above the new nodes calculated
+			# max level need their width incremented
+			level.upto(@max_level) do | inc_level |
+				stack[inc_level].width[inc_level] += 1 unless stack[inc_level].width[inc_level] == 0
+			end
 			@size += 1
 		end
 	end
@@ -117,7 +138,6 @@ class ZSkipList
 		node = @head
 		until node.nil? do
 			check_parent_should_be_nil = false
-
 			0.upto(@max_level) do | level |
 				if next_node_stack[level].nil? then
 					$stdout.write " "
@@ -135,6 +155,24 @@ class ZSkipList
 					end
 				end
 			end
+
+			$stdout.write "   "
+
+			check_parent_should_be_nil = false
+			0.upto(@max_level) do | level |
+				width = node.width[level]
+				if width.nil?
+					$stdout.write " %5d" % [0]
+					check_parent_should_be_nil = true
+				else
+					if check_parent_should_be_nil then
+						$stdout.write " %5d" % [-1]
+					else
+						$stdout.write " %5d" % width
+					end
+				end
+			end
+			
 			puts " #{node}"
 			node = node[0]
 		end
@@ -144,49 +182,59 @@ class ZSkipList
 end
 
 z = ZSkipList.new
-z.add("ryan", 100)
 z.add("andrew", 200)
+z.dbg_dump_list
+z.add("ryan", 100)
+z.dbg_dump_list
 z.add("sciampacone", 300)
 z.dbg_dump_list
 z.add("vanessa", 100)
+z.dbg_dump_list
 z.add("maya", 200)
+z.dbg_dump_list
 z.add("debra", 500)
+z.dbg_dump_list
 z.add("jean", 50)
+z.dbg_dump_list
 z.add("rae", 900)
+z.dbg_dump_list
 z.add("ann", 500)
+z.dbg_dump_list
 z.add("rachel", 150)
+z.dbg_dump_list
 z.add("tony", 325)
+z.dbg_dump_list
 z.add("anthony", 450)
 z.dbg_dump_list
-z.remove("maya")
-z.dbg_dump_list
-z.remove("andrew")
-z.dbg_dump_list
-z.remove("vanessa")
-z.dbg_dump_list
-z.add("ryan", 100)
-z.add("andrew", 200)
-z.add("sciampacone", 300)
-z.add("vanessa", 100)
-z.add("maya", 200)
-z.add("debra", 500)
-z.add("jean", 50)
-z.add("rae", 900)
-z.add("ann", 500)
-z.add("rachel", 150)
-z.add("tony", 325)
-z.add("anthony", 450)
-z.dbg_dump_list
-z.remove("ryan")
-z.remove("andrew")
-z.remove("sciampacone")
-z.remove("vanessa")
-z.remove("maya")
-z.remove("debra")
-z.remove("jean")
-z.remove("rae")
-z.remove("ann")
-z.remove("rachel")
-z.remove("tony")
-z.remove("anthony")
-z.dbg_dump_list
+# z.remove("maya")
+# z.dbg_dump_list
+# z.remove("andrew")
+# z.dbg_dump_list
+# z.remove("vanessa")
+# z.dbg_dump_list
+# z.add("ryan", 100)
+# z.add("andrew", 200)
+# z.add("sciampacone", 300)
+# z.add("vanessa", 100)
+# z.add("maya", 200)
+# z.add("debra", 500)
+# z.add("jean", 50)
+# z.add("rae", 900)
+# z.add("ann", 500)
+# z.add("rachel", 150)
+# z.add("tony", 325)
+# z.add("anthony", 450)
+# z.dbg_dump_list
+# z.remove("ryan")
+# z.remove("andrew")
+# z.remove("sciampacone")
+# z.remove("vanessa")
+# z.remove("maya")
+# z.remove("debra")
+# z.remove("jean")
+# z.remove("rae")
+# z.remove("ann")
+# z.remove("rachel")
+# z.remove("tony")
+# z.remove("anthony")
+# z.dbg_dump_list
