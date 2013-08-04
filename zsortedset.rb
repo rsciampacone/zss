@@ -114,24 +114,39 @@ class ZSkipList
 			# (if this node was involved at the skip level)
 			#
 			0.upto(@max_level) do | level |
-				# Node level connections
 				if n_node == stack[level][level] then
+					# Node level connections
 					stack[level][level] = n_node[level]
+
+					# Node width adjustments
+					if n_node[level].nil? then
+						# We deleted the last node in the chain - previous width is now 0
+						stack[level].width[level] = 0
+					else
+						# There is a node which succeeds this one in the level chaining
+						stack[level].width[level] += n_node.width[level] - 1
+					end
+				elsif stack[level].width[level] != 0 then
+					# Doesn't appear in the level chain BUT deleting this node does affect
+					# the width distance
+					stack[level].width[level] -= 1
 				end
-				
-				# Node width adjustments
-				stack[level].width[level] += n_node.width[level] - 1 unless stack[level].width[level] == 0
 			end
 			@size -= 1
 		end
 	end
+ 
  
  	def dbg_verify_list
  		node = @head
  		key = nil
  		until node.nil?
  			0.upto(@max_level) do | level |
- 				if not node[level].nil? then
+ 				if node[level].nil? then
+ 					if node.width[level] != 0 then
+ 						raise RuntimeError, "Node #{node} has nil next node at level #{level} but has non-zero width #{node.width[level]}"
+ 					end
+ 				else
  					dbg_verify_width(node, node[level], level, node.width[level])
  				end
  			end
