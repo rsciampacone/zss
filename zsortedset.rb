@@ -1,4 +1,11 @@
+# This software is provided under the Eclipse Public Licence (EPL).
+# http://www.eclipse.org/org/documents/epl-v10.php
+# Author: Ryan Sciampacone
+#
+
 class ZSkipList
+	@@dbg = false
+
 	class Node
 		def initialize(key, value, max_level)
 			@skip_stack = []
@@ -48,7 +55,7 @@ class ZSkipList
 				if key <= n_node.key then
 					break
 				end
-				$stdout.write " #{level}{#{c_node.key},#{n_node.key},#{c_node.width[level]}}" # dbg
+				$stdout.write " #{level}{#{c_node.key},#{n_node.key},#{c_node.width[level]}}" if @@dbg
 
 				width_stack[level] += c_node.width[level]
 				c_node = n_node
@@ -56,14 +63,13 @@ class ZSkipList
 			end
 			stack[level] = c_node
 		end
-		puts # dbg		
+		puts if @@dbg
 		return n_node, c_node, stack, width_stack
 	end
 	private :find_node
 	
 	def add(key, value)
 		n_node, c_node, stack, width_stack = find_node(key)
-		puts "Adding #{key} width_stack #{width_stack}" # dbg
 		
 		# n_node should now contain either the identical key or the one to be
 		# inserted ahead of
@@ -108,13 +114,53 @@ class ZSkipList
 			# (if this node was involved at the skip level)
 			#
 			0.upto(@max_level) do | level |
+				# Node level connections
 				if n_node == stack[level][level] then
 					stack[level][level] = n_node[level]
 				end
+				
+				# Node width adjustments
+				stack[level].width[level] += n_node.width[level] - 1 unless stack[level].width[level] == 0
 			end
 			@size -= 1
 		end
 	end
+ 
+ 	def dbg_verify_list
+ 		node = @head
+ 		key = nil
+ 		until node.nil?
+ 			0.upto(@max_level) do | level |
+ 				if not node[level].nil? then
+ 					dbg_verify_width(node, node[level], level, node.width[level])
+ 				end
+ 			end
+ 			if not key.nil?
+ 				if key > node.key then
+ 					raise RuntimeError, "Key #{key} is not <= node #{node} key #{node.key}"
+ 				end
+ 			end
+ 			key = node.key
+ 			node = node[0]
+ 		end
+ 	end
+ 
+ 	def dbg_verify_width(root_node, projected_node, level, width)
+ 		node = root_node
+ 		until width == 0
+ 			if node.nil?
+	 			raise RuntimeError, "Node #{root_node} at level #{level} lead to nil before reaching projected node #{projected_node}"
+	 		end
+	 		if node == projected_node then
+	 			raise RuntimeError, "Node #{root_node} at level #{level} found projected node #{projected_node} early with #{width} remaining"
+	 		end
+ 			node = node[0]
+ 			width -= 1
+ 		end
+ 		if node != projected_node then
+ 			raise RuntimeError, "Node #{root_node} lead to #{node} for width #{width} at level #{level} which did not reach projected node #{projected_node}"
+ 		end
+ 	end
  
 	def dbg_dump_list
 		puts "---> START LIST DUMP"
@@ -178,6 +224,7 @@ class ZSkipList
 		end
 
 		puts "<--- END LIST DUMP"
+		dbg_verify_list
 	end
 end
 
@@ -206,35 +253,35 @@ z.add("tony", 325)
 z.dbg_dump_list
 z.add("anthony", 450)
 z.dbg_dump_list
-# z.remove("maya")
-# z.dbg_dump_list
-# z.remove("andrew")
-# z.dbg_dump_list
-# z.remove("vanessa")
-# z.dbg_dump_list
-# z.add("ryan", 100)
-# z.add("andrew", 200)
-# z.add("sciampacone", 300)
-# z.add("vanessa", 100)
-# z.add("maya", 200)
-# z.add("debra", 500)
-# z.add("jean", 50)
-# z.add("rae", 900)
-# z.add("ann", 500)
-# z.add("rachel", 150)
-# z.add("tony", 325)
-# z.add("anthony", 450)
-# z.dbg_dump_list
-# z.remove("ryan")
-# z.remove("andrew")
-# z.remove("sciampacone")
-# z.remove("vanessa")
-# z.remove("maya")
-# z.remove("debra")
-# z.remove("jean")
-# z.remove("rae")
-# z.remove("ann")
-# z.remove("rachel")
-# z.remove("tony")
-# z.remove("anthony")
-# z.dbg_dump_list
+z.remove("maya")
+z.dbg_dump_list
+z.remove("andrew")
+z.dbg_dump_list
+z.remove("vanessa")
+z.dbg_dump_list
+z.add("ryan", 100)
+z.add("andrew", 200)
+z.add("sciampacone", 300)
+z.add("vanessa", 100)
+z.add("maya", 200)
+z.add("debra", 500)
+z.add("jean", 50)
+z.add("rae", 900)
+z.add("ann", 500)
+z.add("rachel", 150)
+z.add("tony", 325)
+z.add("anthony", 450)
+z.dbg_dump_list
+z.remove("ryan")
+z.remove("andrew")
+z.remove("sciampacone")
+z.remove("vanessa")
+z.remove("maya")
+z.remove("debra")
+z.remove("jean")
+z.remove("rae")
+z.remove("ann")
+z.remove("rachel")
+z.remove("tony")
+z.remove("anthony")
+z.dbg_dump_list
