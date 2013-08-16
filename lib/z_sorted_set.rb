@@ -3,19 +3,23 @@
 # Author: Ryan Sciampacone
 #
 
+class ZSortedSet
+	VERSION = "0.0.1"
+end
+
 class ZSkipList
 	@@dbg = false
 
 	class Node
-		def initialize(key, value, max_level)
+		def initialize(score, member, max_level)
 			@skip_stack = []
 			@width = [0] * (max_level + 1)
-			@key = key
-			@value = value
+			@score = score
+			@member = member
 		end
 		
-		attr_reader :key
-		attr_accessor :value
+		attr_reader :score
+		attr_accessor :member
 		attr_reader :width
 		
 		def [](index)
@@ -36,14 +40,16 @@ class ZSkipList
 
 	attr_reader :size
 
-	# Find the node which matches _key_
+	# Find the either equal or the closest "next" node in comparison to _score_ followed
+	# (if supplied) by _member_.
+	#
 	# returns:
-	# c_node   Last node found that is lower in comparison value to the _key_
+	# c_node   Last node found that is lower in comparison to the _score_
 	# n_node   Next equal or higher comparison node in the list
-	# stack    All prior nodes in the skip stack that are the next lowest compared to the key
+	# stack    All prior nodes in the skip stack that are the next lowest compared to the score
 	# width_stack  The cumulative width traveled at that stack level before dropping to a lower level
 	# 
-	def find_node(key)
+	def find_node(score, member=nil)
 		c_node = @head	
 		n_node = nil	
 		stack = []
@@ -52,10 +58,17 @@ class ZSkipList
 			n_node = c_node[level]
 			
 			until n_node.nil? do 
-				if key <= n_node.key then
+				# We have found our position when either the next score is greater than the search
+				# score OR when given an equal next score that the search member is less than the next
+				# member.
+				if score < n_node.score then
 					break
+				elsif score == n_node.score then
+					if member.nil? || member <= n_node.member then
+						break
+					end
 				end
-				$stdout.write " #{level}{#{c_node.key},#{n_node.key},#{c_node.width[level]}}" if @@dbg
+				$stdout.write " #{level}{#{c_node.score},#{n_node.score},#{c_node.width[level]}}" if @@dbg
 
 				width_stack[level] += c_node.width[level]
 				c_node = n_node
@@ -68,15 +81,15 @@ class ZSkipList
 	end
 	private :find_node
 	
-	def add(key, value)
-		n_node, c_node, stack, width_stack = find_node(key)
+	def add(score, member)
+		n_node, c_node, stack, width_stack = find_node(score)
 		
-		# n_node should now contain either the identical key or the one to be
+		# n_node should now contain either the identical score or the one to be
 		# inserted ahead of
-		if not n_node.nil? and key == n_node.key then
-			n_node.value = value
+		if not n_node.nil? and score == n_node.score then
+			n_node.member = member
 		else
-			node = Node.new(key, value, @max_level)
+			node = Node.new(score, member, @max_level)
 			bits = @r_gen.rand(2 ** @max_level)
 
 			# We ignore the first bit here in the interest of building
@@ -106,11 +119,11 @@ class ZSkipList
 		end
 	end
 
-	def remove(key)
-		n_node, c_node, stack = find_node(key)
+	def remove(score)
+		n_node, c_node, stack = find_node(score)
 		
-		if not n_node.nil? and key == n_node.key then
-			# n_node is to be removed.  reconnect the skip stack to the succeeding values
+		if not n_node.nil? and score == n_node.score then
+			# n_node is to be removed.  reconnect the skip stack to the succeeding node
 			# (if this node was involved at the skip level)
 			#
 			0.upto(@max_level) do | level |
@@ -139,7 +152,7 @@ class ZSkipList
  
  	def dbg_verify_list
  		node = @head
- 		key = nil
+ 		score = nil
  		until node.nil?
  			0.upto(@max_level) do | level |
  				if node[level].nil? then
@@ -150,12 +163,12 @@ class ZSkipList
  					dbg_verify_width(node, node[level], level, node.width[level])
  				end
  			end
- 			if not key.nil?
- 				if key > node.key then
- 					raise RuntimeError, "Key #{key} is not <= node #{node} key #{node.key}"
+ 			if not score.nil?
+ 				if score > node.score then
+ 					raise RuntimeError, "Score #{score} is not <= node #{node} score #{node.score}"
  				end
  			end
- 			key = node.key
+ 			score = node.score
  			node = node[0]
  		end
  	end
@@ -184,7 +197,7 @@ class ZSkipList
 		puts "== Elements in order using 0-level link"
 		node = @head[0] # skip the head sentinel
 		until node.nil?
-			puts "N:#{node} {K:#{node.key}, V:#{node.value}}"
+			puts "N:#{node} {S:#{node.score}, M:#{node.member}}"
 			node = node[0]
 		end
 		
@@ -243,6 +256,7 @@ class ZSkipList
 	end
 end
 
+=begin
 z = ZSkipList.new
 z.add("andrew", 200)
 z.dbg_dump_list
@@ -300,3 +314,4 @@ z.remove("rachel")
 z.remove("tony")
 z.remove("anthony")
 z.dbg_dump_list
+=end
