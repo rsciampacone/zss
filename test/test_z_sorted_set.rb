@@ -16,56 +16,65 @@ class ZSortedSet
 
 	class ZSkipList
 		include DebugZSkipList
+
+
 	end
 end
 
 class TestZSortedSet < Minitest::Test
+	def confirm_membership(sortedset, orig_membership_list)
+		membership_list = orig_membership_list.clone
+		sortedset.each do | score, member |
+			raise "SortedSet contained member that wasn't expected #{member}" if membership_list[member].nil?
+			raise "SortedSet member mismatched against score (ss: #{score} expected: #{membership_list[member]})" if score != membership_list[member]
+			membership_list.delete(member)
+		end
+		raise "SortedSet did not contain all expected members #{membership_list}" if membership_list.size != 0
+	end
+
 	def generate_create_sortedset_procs
 		[ Proc.new { ZSortedSet.new } ]
 	end
 
 	def generate_populate_sortedset_procs(list)
-		[ Proc.new { | sortedset | 
+		[ Proc.new { | sortedset, member_verification |
 			list.each do | pair |
 				sortedset.add(pair[0], pair[1])
+				member_verification[pair[1]] = pair[0]
 				sortedset.dbg_verify
+				confirm_membership(sortedset, member_verification)
 			end }
 		]
 	end
 
 	def generate_trim_sortedset_procs(list)
-		[ Proc.new { | sortedset |
+		[ Proc.new { | sortedset, member_verification |
 			list.each do | pair |
 				sortedset.remove(pair[1])
+				member_verification.delete(pair[1])
 				sortedset.dbg_verify
+				confirm_membership(sortedset, member_verification)
 			end }
 		]
 	end
 
-	def generate_repopulate_sortedset_procs(list)
-		[ Proc.new { | sortedset |
-			list.each do | pair |
-				sortedset.add(pair[0], pair[1])
-				sortedset.dbg_verify
-			end }
-		]
-	end
-
-	def run_add_and_delete_testing(base_add_list)
+	def run_add_and_delete_testing
 		generate_create_sortedset_procs.each do | creator |
-			generate_populate_sortedset_procs(base_add_list).each do | populator |
-				generate_trim_sortedset_procs(base_add_list).each do | trimmer |
-					generate_repopulate_sortedset_procs(base_add_list).each do | repopulator |
+			generate_populate_sortedset_procs(primary_list).each do | populator |
+				generate_trim_sortedset_procs(removal_list).each do | trimmer |
+					generate_populate_sortedset_procs(add_list).each do | repopulator |
+						member_verification = {}
+
 						sortedset = creator.()
 						sortedset.dbg_verify()
 
-						populator.(sortedset)
+						populator.(sortedset, member_verification)
 						sortedset.dbg_verify()
 
-						trimmer.(sortedset)
+						trimmer.(sortedset, member_verification)
 						sortedset.dbg_verify()
 
-						repopulator.(sortedset)
+						repopulator.(sortedset, member_verification)
 						sortedset.dbg_verify()
 					end
 				end
@@ -73,7 +82,7 @@ class TestZSortedSet < Minitest::Test
 		end
 	end
 
-	def basic_list
+	def primary_list
 		[
 			[ 50, "one"],
 			[100, "two"],
@@ -94,91 +103,33 @@ class TestZSortedSet < Minitest::Test
 		]
 	end
 
+	def removal_list
+		[
+			[ 50, "one"],
+			[100, "three"],
+			[150, "five"],
+			[225, "seven"],
+			[325, "nine"],
+			[450, "ten"],
+			[500, "twelve"],
+			[900, "fourteen"],
+			[975, "sixteen"],
+		]
+	end
+
+	def add_list
+		[
+			[25, "addstartone"],
+			[50, "addstarttwo"],
+			[75, "addstartthree"],
+			[452, "addmiddle"],
+			[960, "addendone"],
+			[975, "addendtwo"],
+			[999, "addendthree"]
+		]
+	end
+
 	def test_basic_add_and_delete
-		run_add_and_delete_testing(basic_list)
-	end
-
-	#
-	# HACKS TO USE OR REMOVE?
-	#
-	def xxx_remove_list
-		list = []
-		length = active_list.size
-		list += active_list[(active_list.size / 2).floor]
-		list += active_list[((active_list.size / 4) * 1).floor]
-		list += active_list[((active_list.size / 4) * 3).floor]
-	end
-
-	def xxx_generate_remove_order_index_list
-		list = active_list
-		list_size = active_list.size
-		remove_order_index_list = []
-		remove_order_index_list.push (list_size / 2).floor
-		remove_order_index_list.push (list_size / 4).floor
-		remove_order_index_list.push ((list_size / 4) * 3).floor
-		remove_order_index_list.push 0
-		remove_order_index_list.push list_size - 1
-		remove_order_index_list
-	end
-
-	# Older test code used as a partial template
-	def placeholder
-		z = Zsortedset.new
-		z.add("andrew", 200)
-		z.dbg_dump_list
-		z.add("ryan", 100)
-		z.dbg_dump_list
-		z.add("sciampacone", 300)
-		z.dbg_dump_list
-		z.add("vanessa", 100)
-		z.dbg_dump_list
-		z.add("maya", 200)
-		z.dbg_dump_list
-		z.add("debra", 500)
-		z.dbg_dump_list
-		z.add("jean", 50)
-		z.dbg_dump_list
-		z.add("rae", 900)
-		z.dbg_dump_list
-		z.add("ann", 500)
-		z.dbg_dump_list
-		z.add("rachel", 150)
-		z.dbg_dump_list
-		z.add("tony", 325)
-		z.dbg_dump_list
-		z.add("anthony", 450)
-		z.dbg_dump_list
-		z.remove("maya")
-		z.dbg_dump_list
-		z.remove("andrew")
-		z.dbg_dump_list
-		z.remove("vanessa")
-		z.dbg_dump_list
-		z.add("ryan", 100)
-		z.add("andrew", 200)
-		z.add("sciampacone", 300)
-		z.add("vanessa", 100)
-		z.add("maya", 200)
-		z.add("debra", 500)
-		z.add("jean", 50)
-		z.add("rae", 900)
-		z.add("ann", 500)
-		z.add("rachel", 150)
-		z.add("tony", 325)
-		z.add("anthony", 450)
-		z.dbg_dump_list
-		z.remove("ryan")
-		z.remove("andrew")
-		z.remove("sciampacone")
-		z.remove("vanessa")
-		z.remove("maya")
-		z.remove("debra")
-		z.remove("jean")
-		z.remove("rae")
-		z.remove("ann")
-		z.remove("rachel")
-		z.remove("tony")
-		z.remove("anthony")
-		z.dbg_dump_list
+		run_add_and_delete_testing
 	end
 end

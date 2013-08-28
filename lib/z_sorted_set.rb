@@ -171,6 +171,10 @@ class ZSortedSet
 		@keystore = Hash.new
 	end
 
+	def each(&block)
+		@skiplist.each &block
+	end
+
 	def add(score, member)
 		if not (old_score = @keystore[member]).nil?
 			@skiplist.remove(oldscore, member)
