@@ -16,8 +16,6 @@ class ZSortedSet
 
 	class ZSkipList
 		include DebugZSkipList
-
-
 	end
 end
 
@@ -36,26 +34,53 @@ class TestZSortedSet < Minitest::Test
 		[ Proc.new { ZSortedSet.new } ]
 	end
 
-	def generate_populate_sortedset_procs(list)
-		[ Proc.new { | sortedset, member_verification |
-			list.each do | pair |
-				sortedset.add(pair[0], pair[1])
-				member_verification[pair[1]] = pair[0]
-				sortedset.dbg_verify
-				confirm_membership(sortedset, member_verification)
-			end }
+	def build_list_permutations(list)
+		[
+			list,
+			list.reverse,
+			list_as_binary_tree(list),
 		]
 	end
 
-	def generate_trim_sortedset_procs(list)
-		[ Proc.new { | sortedset, member_verification |
-			list.each do | pair |
-				sortedset.remove(pair[1])
-				member_verification.delete(pair[1])
-				sortedset.dbg_verify
-				confirm_membership(sortedset, member_verification)
-			end }
-		]
+	def list_as_binary_tree(list)
+		binary_list = []
+		queue = [[0, list.size - 1]]
+		until queue.empty? do
+			range = queue.shift
+			low = range[0]
+			high = range[1]
+			middle = (low + ((high - low) / 2)).floor
+			binary_list.push(list[middle])
+			queue.push([low, middle - 1]) if low != middle
+			queue.push([middle + 1, high]) if middle != high
+		end
+		binary_list
+	end
+
+	def generate_populate_sortedset_procs(orig_list)
+		build_list_permutations(orig_list).map do | list |
+			Proc.new { | sortedset, member_verification |
+				list.each do | pair |
+					sortedset.add(pair[0], pair[1])
+					member_verification[pair[1]] = pair[0]
+					sortedset.dbg_verify
+					confirm_membership(sortedset, member_verification)
+				end
+			}
+		end
+	end
+
+	def generate_trim_sortedset_procs(orig_list)
+		build_list_permutations(orig_list).map do | list |
+			Proc.new { | sortedset, member_verification |
+				list.each do | pair |
+					sortedset.remove(pair[1])
+					member_verification.delete(pair[1])
+					sortedset.dbg_verify
+					confirm_membership(sortedset, member_verification)
+				end
+			}
+		end
 	end
 
 	def run_add_and_delete_testing
