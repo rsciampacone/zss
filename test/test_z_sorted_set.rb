@@ -96,6 +96,7 @@ class TestZSortedSet < Minitest::Test
 	end
 
 	def list_as_binary_tree(list)
+		return [] if list.empty?
 		binary_list = []
 		queue = [[0, list.size - 1]]
 		until queue.empty? do
@@ -136,7 +137,12 @@ class TestZSortedSet < Minitest::Test
 		end
 	end
 
-	def run_add_and_delete_testing
+	def run_add_and_delete_testing(primary_list, removal_list, add_list)
+		# Validate inputs (more or less)
+		primary_list.map { | elt | raise "Inputs must be array pairs" if (not elt.instance_of? Array) or (elt.size != 2) }
+		removal_list.map { | elt | raise "Inputs must be array pairs" if (not elt.instance_of? Array) or (elt.size != 2) }
+		add_list.map { | elt | raise "Inputs must be array pairs" if (not elt.instance_of? Array) or (elt.size != 2) }
+
 		generate_create_sortedset_procs.each do | creator |
 			generate_populate_sortedset_procs(primary_list).each do | populator |
 				generate_trim_sortedset_procs(removal_list).each do | trimmer |
@@ -160,54 +166,67 @@ class TestZSortedSet < Minitest::Test
 		end
 	end
 
-	def primary_list
-		[
-			[ 50, "one"],
-			[100, "two"],
-			[100, "three"],
-			[125, "four"],
-			[150, "five"],
-			[200, "six"],
-			[225, "seven"],
-			[300, "eight"],
-			[325, "nine"],
-			[450, "ten"],
-			[450, "eleven"],
-			[500, "twelve"],
-			[750, "thirteen"],
-			[900, "fourteen"],
-			[950, "fifteen"],
-			[975, "sixteen"],
-		]
-	end
-
-	def removal_list
-		[
-			[ 50, "one"],
-			[100, "three"],
-			[150, "five"],
-			[225, "seven"],
-			[325, "nine"],
-			[450, "ten"],
-			[500, "twelve"],
-			[900, "fourteen"],
-			[975, "sixteen"],
-		]
-	end
-
-	def add_list
-		[
-			[25, "addstartone"],
-			[50, "addstarttwo"],
-			[75, "addstartthree"],
-			[452, "addmiddle"],
-			[960, "addendone"],
-			[975, "addendtwo"],
-			[999, "addendthree"]
-		]
+	def test_empty_list_remove
+		run_add_and_delete_testing([], [[50, "doesnt exist"]], [[1000, "something else"]])
 	end
 
 	def test_basic_add_and_delete
-		run_add_and_delete_testing
+		run_add_and_delete_testing([[100, "one"]], [[100, "one"]], [[100, "one"]])
+	end
+
+	def test_simple_add_and_delete
+		simple_inputs = [
+				[100, "one"],
+				[200, "two"],
+				[300, "three"]
+			]
+		run_add_and_delete_testing(simple_inputs, simple_inputs, simple_inputs)
+	end
+
+	def test_standard_add_and_delete
+		run_add_and_delete_testing(
+			# Initial list
+			[
+				[ 50, "one"],
+				[100, "two"],
+				[100, "three"],
+				[125, "four"],
+				[150, "five"],
+				[200, "six"],
+				[225, "seven"],
+				[300, "eight"],
+				[325, "nine"],
+				[450, "ten"],
+				[450, "eleven"],
+				[500, "twelve"],
+				[750, "thirteen"],
+				[900, "fourteen"],
+				[950, "fifteen"],
+				[975, "sixteen"],
+			],
+			# Remove list
+			[
+				[ 50, "one"],
+				[100, "three"],
+				[150, "five"],
+				[225, "seven"],
+				[325, "nine"],
+				[450, "ten"],
+				[500, "twelve"],
+				[900, "fourteen"],
+				[975, "sixteen"],
+			],
+			# Add list
+			[
+				[25, "addstartone"],
+				[50, "addstarttwo"],
+				[75, "addstartthree"],
+				[452, "addmiddle"],
+				[960, "addendone"],
+				[975, "addendtwo"],
+				[999, "addendthree"]
+			]
+
+		)
 	end
 end
