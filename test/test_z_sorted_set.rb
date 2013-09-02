@@ -31,7 +31,60 @@ class TestZSortedSet < Minitest::Test
 	end
 
 	def generate_create_sortedset_procs
-		[ Proc.new { ZSortedSet.new } ]
+		[
+			# Basic implementation
+			Proc.new { ZSortedSet.new },
+
+			# Fair distribution for node levels
+			Proc.new {
+				zss = ZSortedSet.new
+				zss.instance_eval {
+					@skiplist.instance_eval {
+						# Sanity - are we redefining the right thing?  (invoking the method to see if it exists)
+						generate_new_node_level
+
+						def generate_new_node_level
+							level = @r_gen.rand(@max_level + 1)
+							raise "Calculated height for new node exceeded @max_level limits #{level} => #{@max_level}" if level > @max_level
+							level
+						end
+					}
+				}
+				zss
+			},
+
+			# Simple case - all nodes are level 0
+			Proc.new {
+				zss = ZSortedSet.new
+				zss.instance_eval {
+					@skiplist.instance_eval {
+						# Sanity - are we redefining the right thing?  (invoking the method to see if it exists)
+						generate_new_node_level
+
+						def generate_new_node_level
+							0
+						end
+					}
+				}
+				zss
+			},
+
+			# Simple case (other extreme) - all nodes are level @max_level
+			Proc.new {
+				zss = ZSortedSet.new
+				zss.instance_eval {
+					@skiplist.instance_eval {
+						# Sanity - are we redefining the right thing?  (invoking the method to see if it exists)
+						generate_new_node_level
+
+						def generate_new_node_level
+							@max_level
+						end
+					}
+				}
+				zss
+			},
+		]
 	end
 
 	def build_list_permutations(list)

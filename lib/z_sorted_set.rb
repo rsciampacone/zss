@@ -34,7 +34,7 @@ class ZSortedSet
 			@max_level = 10
 			@size = 0
 			@head = Node.new(nil, nil, @max_level)
-			@r_gen = Random.new
+			initialize_generate_new_node_level
 		end
 
 		attr_reader :size
@@ -98,7 +98,24 @@ class ZSortedSet
 			return n_node, c_node, stack, width_stack
 		end
 		private :find_node
-		
+
+		def initialize_generate_new_node_level()
+			@r_gen = Random.new
+		end
+		private :initialize_generate_new_node_level
+
+		def generate_new_node_level()
+			level = 0
+			bits = @r_gen.rand(2 ** @max_level)
+			until 0 == (bits & 1)
+				bits >>= 1
+				level += 1
+			end
+			raise "Calculated height for new node exceeded @max_level limits #{level} => #{@max_level}" if level > @max_level
+			level
+		end
+		private :generate_new_node_level
+
 		def add(score, member)
 			n_node, c_node, stack, width_stack = find_node(score, member)
 
@@ -106,13 +123,12 @@ class ZSortedSet
 			raise "Adding a member that already exists [#{score} #{member}]" if not n_node.nil? and n_node.member == member
 			
 			node = Node.new(score, member, @max_level)
-			bits = @r_gen.rand(2 ** @max_level)
+			new_node_level = generate_new_node_level()
 
 			# We ignore the first bit here in the interest of building
 			# a linear list at the bottom level
 			cumulative_width = 0
-			level = 0
-			begin
+			0.upto(new_node_level) do | level |
 				# Node level connections
 				node[level] = stack[level][level]
 				stack[level][level] = node
@@ -121,14 +137,11 @@ class ZSortedSet
 				node.width[level] = node[level].nil? ? 0 : stack[level].width[level] - cumulative_width
 				stack[level].width[level] = cumulative_width + 1
 				cumulative_width += width_stack[level]
+			end
 
-				# Look to the next / bit level and decide if the node stack grows deeper
-				bits >>= 1
-				level += 1
-			end until 0 == (bits & 1)
 			# To account for the new node insert, all remaining levels above the new nodes calculated
 			# max level need their width incremented
-			level.upto(@max_level) do | inc_level |
+			(new_node_level + 1).upto(@max_level) do | inc_level |
 				stack[inc_level].width[inc_level] += 1 unless stack[inc_level].width[inc_level] == 0
 			end
 			@size += 1
