@@ -8,14 +8,17 @@ module DebugZSortedSet
 		@skiplist.dbg_verify
 
 		members_found = {}
+		expected_keys = @keystore.clone
 		@skiplist.each do | score, member |
 			raise "Skiplist contains duplicate member #{member}" if not members_found[member].nil?
-			raise "Skiplist score didn't match Hash score for #{member}: SL:#{score} KS:#{@keystore[member]}" if score != @keystore[member]
-			raise "Keystore doesn't contain member from skiplist #{member}" if @keystore[member].nil?
+			raise "Skiplist score didn't match Hash score for #{member}: SL:#{score} KS:#{@keystore[member]}" if score != expected_keys[member]
+			raise "Keystore doesn't contain member from skiplist #{member}" if expected_keys[member].nil?
 
 			members_found[member] = score
+			expected_keys.delete(member)
 		end
 
+		raise "Mistmatch not all members in keystore found in skiplist: #{expected_keys}" if not expected_keys.empty?
 		raise "Mismatch member count between skiplist (#{members_found.size}) vs. keystore (#{@keystore.size}" if members_found.size != @keystore.size
 	end
 end
@@ -24,6 +27,7 @@ module DebugZSkipList
  	def dbg_verify
  		node = @head
  		score = nil
+ 		members_found = []
  		until node.nil?
  			0.upto(@max_level) do | level |
  				if node[level].nil? then
@@ -40,6 +44,8 @@ module DebugZSkipList
  				end
  			end
  			score = node.score
+ 			raise "Duplicate member found in skiplist #{node.member}" if members_found.include? node.member
+ 			members_found.push(node.member)
  			node = node[0]
  		end
  		true
