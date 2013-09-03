@@ -177,6 +177,17 @@ class ZSortedSet
 			end
 			@size -= 1
 		end
+
+		# Return the 0-based ranked of a score/member pair.  The pair is expected to exist.
+		#
+		def rank(score, member)
+			n_node, c_node, stack, width_stack = find_node(score, member)
+
+			# Sanity check
+			raise "Rank of member that doesn't exists [#{score} #{member}]" if not n_node.nil? and (n_node.score != score or n_node.member != member)
+
+			width_stack.inject(0) {| total, current | total + current}
+		end
 	end
 
 	def initialize
@@ -186,6 +197,10 @@ class ZSortedSet
 
 	def each(&block)
 		@skiplist.each &block
+	end
+
+	def cardinality
+		@keystore.size
 	end
 
 	def add(score, member)
@@ -201,6 +216,12 @@ class ZSortedSet
 			@skiplist.remove(old_score, member)
 			@keystore.delete(member)
 			old_score
+		end
+	end
+
+	def rank(member)
+		if not (score = @keystore[member]).nil?
+			@skiplist.rank(score, member)
 		end
 	end
 end

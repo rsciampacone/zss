@@ -229,4 +229,42 @@ class TestZSortedSet < Minitest::Test
 
 		)
 	end
+
+	def test_basic_rank
+		assert_nil ZSortedSet.new.rank("foobar")
+	end
+
+	def test_simple_rank
+		zss = ZSortedSet.new
+		zss.add(100, "one")
+		assert_same(zss.rank("one"), 0)
+		assert_nil(zss.rank("two"))
+	end
+
+	def test_standard_rank
+		zss = ZSortedSet.new
+		list = [
+			[ 50, "one"],
+			[100, "two"],
+			[100, "three"],
+			[125, "four"],
+			[150, "five"],
+			[200, "six"],
+			[225, "seven"],
+			[300, "eight"],
+			[325, "nine"],
+			[450, "ten"],
+			[450, "eleven"],
+			[500, "twelve"],
+			[750, "thirteen"],
+			[900, "fourteen"],
+			[950, "fifteen"],
+			[975, "sixteen"],
+		]
+		list.each {|pair| zss.add(*pair)}
+
+		list.sort.each_with_index do |pair, index|
+			assert_same(zss.rank(pair[1]), index)
+		end
+	end
 end
