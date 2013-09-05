@@ -234,6 +234,15 @@ class TestZSortedSet < Minitest::Test
 		assert_nil ZSortedSet.new.rank("foobar")
 	end
 
+	def test_near_miss_rank
+		zss = ZSortedSet.new
+		zss.add(100, "one")
+		assert_nil(zss.rank("one1"))
+		assert_nil(zss.rank("One"))
+		assert_nil(zss.rank("nne"))
+		assert_nil(zss.rank("none"))
+	end
+
 	def test_simple_rank
 		zss = ZSortedSet.new
 		zss.add(100, "one")
